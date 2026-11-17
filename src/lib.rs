@@ -696,7 +696,15 @@ impl Writer {
                     pts = last_frame_pts;
                 }
                 else if let LastFrameDuration::FrameRate(duration) = &mut last_frame_duration {
-                    *duration = pts - last_frame_pts;
+                    let gap = pts - last_frame_pts;
+                    // GIF delays are quantized to centiseconds, so a sub-centisecond gap
+                    // can't represent a real frame interval. It typically comes from a
+                    // duplicate frame (folded later) sitting a hair after the previous one;
+                    // adopting it would shrink the last frame's duration and make the final
+                    // frame end early. Keep the previous frame rate in that case.
+                    if gap >= 1. / 100. {
+                        *duration = gap;
+                    }
                 }
                 last_frame_pts = pts;
 
